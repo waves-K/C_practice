@@ -12,11 +12,13 @@ typedef struct PersonInfo {
 
 typedef struct AddrBook {
     // SIZE 表示的是通讯录中信息的上限
-    PersonInfo person_info[SIZE];
+    PersonInfo *person_info;
     // 需要标注出哪些信息是有意义的，哪些信息是没有意义的
     // 通讯录并不是程序一启动，里面的 1000 条数据都是有意义的
     // [0, size) 有意义的区间
-    int size;
+    // 当 size 和 capacity 相同的时候，说明当前这段内存已经满了，需要进行扩容
+    int size;     // size 表示当前这个数组中多少元素是有效地
+    int capacity; // 当前这个动态数组最大容量
 } AddrBook;
 
 AddrBook g_addr_book;
@@ -45,6 +47,11 @@ void Init() {
 
     //     b) 使用 memset 将数组中的是每一个元素都设置成 0
     memset(g_addr_book.person_info, 0x0, sizeof(g_addr_book.person_info));
+    g_addr_book.capacity = 5;
+    // 此处 malloc 出的内存不太需要 free。
+    // 因为此处是给全局变量进行 malloc 
+    // 希望这个属性的生命周期是整个程序
+    g_addr_book.person_info = (PersonInfo *)malloc(sizeof(PersonInfo) * g_addr_book.capacity);
 }
 
 int Menu() {
@@ -66,16 +73,31 @@ int Menu() {
     return choice;
 }
 
-void AddPersonInfo() {
-    // 添加一个用户信息到通讯录中
-    // 提示用户输入相关的用户信息，然后把对应的数据更新到数组中
-    if(g_addr_book.size >= SIZE) {
-        printf("当前通讯录已满，插入失败!\n");
+void CheckRealloc() {
+    // 什么时候需要扩容
+    if (g_addr_book.size < g_addr_book.capacity) {
+        // 就不需要扩容
         return;
     }
-    printf("添加一个新用户！\n");
-    printf("请输入用户名: ");
+    // 需要扩容
+    // 先把 capacity 放大
+    g_addr_book.capacity *= 2;
+    PersonInfo *tmp = (PersonInfo *)malloc(sizeof(PersonInfo) * g_addr_book.capacity);
+    for (int i = 0; i < g_addr_book.size; ++i) {
+        tmp[i] = g_addr_book.person_info[i];
+    }
+    free(g_addr_book.person_info);
+    g_addr_book.person_info = tmp;
+}
+
+void AddPersonInfo() {
+    // 考虑扩容的情况
+    // 添加一个用户信息到通讯录中
+    // 提示用户输入相关的用户信息，然后把对应的数据更新到数组中
     // 下标为 size 的位置就是我们需要放置的新元素的位置
+    // 扩容的代码
+    CheckRealloc();
+
     scanf("%s", g_addr_book.person_info[g_addr_book.size].name);
     printf("请输入电话号码: ");
     scanf("%s", g_addr_book.person_info[g_addr_book.size].phone);
