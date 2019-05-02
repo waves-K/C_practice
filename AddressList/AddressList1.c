@@ -46,7 +46,7 @@ void Init() {
     // }
 
     //     b) 使用 memset 将数组中的是每一个元素都设置成 0
-    memset(g_addr_book.person_info, 0x0, sizeof(g_addr_book.person_info));
+    // memset(g_addr_book.person_info, 0x0, sizeof(g_addr_book.person_info));
     g_addr_book.capacity = 5;
     // 此处 malloc 出的内存不太需要 free。
     // 因为此处是给全局变量进行 malloc 
@@ -98,6 +98,8 @@ void AddPersonInfo() {
     // 扩容的代码
     CheckRealloc();
 
+    printf("添加一个新用户!\n");
+    printf("请输入用户名: ");
     scanf("%s", g_addr_book.person_info[g_addr_book.size].name);
     printf("请输入电话号码: ");
     scanf("%s", g_addr_book.person_info[g_addr_book.size].phone);
@@ -210,9 +212,49 @@ void ClearPersonInfo() {
 //
 // }
 
+// 程序退出之前，保存
+void Save() {
+    printf("开始保存\n");
+    FILE *fp = fopen("./test.txt", "w");
+    if (fp == NULL) {
+        printf("文件打开失败！保存失败!\n");
+        return;
+    }
+
+    for (int i = 0; i < g_addr_book.size; ++i) {
+        fwrite(&g_addr_book.person_info[i], sizeof(PersonInfo), 1, fp);
+    }
+
+    fclose(fp);
+    printf("文件保存成功！保存了 %d 条数据！\n", g_addr_book.size);;
+}
+
+// 程序启动的时候，加载
+void Load() {
+    printf("开始加载\n");
+    FILE *fp = fopen("./test.txt", "r");
+    if (fp == NULL) {
+        printf("文件打开失败，加载失败！\n");
+        return;
+    }
+
+    PersonInfo tmp = { 0 };
+    // fread 返回值是实际读到的元素个数
+    // 此处 fread 返回结果，要么是 1，要么是 0
+    while (fread(&tmp, sizeof(tmp), 1, fp)) {
+        CheckRealloc();
+        g_addr_book.person_info[g_addr_book.size] = tmp;
+        ++g_addr_book.size;
+    }
+
+    fclose(fp);
+    printf("加载成功! 加载了 %d 条数据！\n", g_addr_book.size);
+}
+
 int main() {
     // 1. 先创建一个 通讯录 的变量，并且也需要对这个变量进行初始化
     Init();
+    Load();
     while (1) {
         // 2. 进入循环，打印一个用户菜单，并且提示用户进行操作
         //    增删查改
@@ -221,12 +263,15 @@ int main() {
         switch (choice) {
             case ADD:
                 AddPersonInfo();
+                Save();
                 break;
             case DEL:
                 DelPersonInfo();
+                Save();
                 break;
             case MODIFY:
                 ModifyPersonInfo();
+                Save();
                 break;
             case FIND:
                 FindPersonInfo();
@@ -239,6 +284,7 @@ int main() {
                 break;
             case EXIT:
                 printf("GoodBye!\n");
+                Save();
                 return 0;
             default:
                 break;
